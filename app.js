@@ -296,6 +296,18 @@
   }
 
   function renderInvitation(data) {
+    // Compatibilidad con el backend anterior, que responde {ok:true, guest:{...}}.
+    if (data?.guest) {
+      data = {
+        ok: data.ok !== false,
+        id: data.guest.id,
+        family: data.guest.name,
+        places: data.guest.reservedSeats,
+        status: data.guest.status === "NO_ASISTE" ? "NO ASISTE" : data.guest.status,
+        attendees: data.guest.attendees
+      };
+    }
+
     if (!data || data.ok === false) {
       guestCard.innerHTML = `<p>No pudimos encontrar esta invitación. Revisa que hayas abierto el enlace completo.</p>`;
       form.querySelectorAll("input, select, textarea, button").forEach(el => el.disabled = true);
@@ -335,7 +347,7 @@
 
       window[callbackName] = data => cleanup(null, data);
       script.onerror = () => cleanup(new Error("No se pudo cargar la invitación"));
-      script.src = `${cfg.API_URL}?action=info&id=${encodeURIComponent(id)}&callback=${encodeURIComponent(callbackName)}`;
+      script.src = `${cfg.API_URL}?action=invite&id=${encodeURIComponent(id)}&callback=${encodeURIComponent(callbackName)}&_=${Date.now()}`;
       document.body.appendChild(script);
     });
   }
@@ -386,6 +398,12 @@
       formMessage.textContent = "Selecciona cuántas personas asistirán.";
       return;
     }
+
+    // Campos compatibles con el backend anterior.
+    document.getElementById("legacyStatus").value = response === "SI" ? "CONFIRMADO" : "NO_ASISTE";
+    document.getElementById("legacyAttendees").value = response === "SI" ? attendeeSelect.value : "0";
+    document.getElementById("legacyMessage").value = document.getElementById("mensaje").value.trim();
+
     formMessage.textContent = "Enviando confirmación…";
     setTimeout(() => {
       formMessage.textContent = "¡Gracias! Tu respuesta fue enviada.";
